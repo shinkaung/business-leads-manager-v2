@@ -28,10 +28,7 @@ export async function authenticateUser(username, password) {
         
         if (data.records && data.records.length > 0) {
             const user = data.records[0];
-            sessionStorage.setItem('isAuthenticated', 'true');
-            sessionStorage.setItem('userId', user.id);
-            sessionStorage.setItem('username', user.fields.username);
-            sessionStorage.setItem('role', user.fields.Role);
+            localStorage.setItem('user', JSON.stringify(user));
             return true;
         }
         return false;
@@ -43,18 +40,10 @@ export async function authenticateUser(username, password) {
 
 // Only check auth status, don't redirect
 export function isAuthenticated() {
-    return sessionStorage.getItem('isAuthenticated') === 'true';
+    return localStorage.getItem('user') !== null;
 }
 
 export function logout() {
-    sessionStorage.clear();
-    const basePath = getBasePath();
-    
-    // Check current path to determine correct redirect
-    const isInPagesDirectory = window.location.pathname.includes('/pages/');
-    const loginPath = isInPagesDirectory 
-        ? '../pages/login.html' 
-        : './pages/login.html';
-        
-    window.location.replace(basePath + loginPath);
+    localStorage.clear();
+    window.location.href = '../login.html';
 }

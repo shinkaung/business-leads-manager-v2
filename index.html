@@ -10,18 +10,17 @@
 </head>
 <body>
     <script type="module">
-        import { isAuthenticated, logout } from './js/auth.js';
-        
-        // Make logout available globally
-        window.logout = logout;
-        
         // Check authentication
-        if (!isAuthenticated()) {
-            const basePath = window.location.hostname === 'shinkaung.github.io' 
-                ? '/business-leads-manager'
-                : '';
-            window.location.replace(`${basePath}/pages/login.html`);
+        const userData = localStorage.getItem('user');
+        if (!userData) {
+            window.location.href = './pages/login.html';
         }
+
+        // Make logout available globally
+        window.logout = () => {
+            localStorage.clear();
+            window.location.href = './pages/login.html';
+        };
     </script>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">

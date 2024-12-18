@@ -1,12 +1,9 @@
 import { authenticateUser } from './auth.js';
 
-const BASE_PATH = window.location.hostname === 'shinkaung.github.io' 
-    ? '/business-leads-manager'
-    : '';
-
-// Update the redirect path
-if (sessionStorage.getItem('isAuthenticated') === 'true') {
-    window.location.replace(`${BASE_PATH}/index.html`);
+// Check if already logged in
+const userData = localStorage.getItem('user');
+if (userData) {
+    window.location.href = '../index.html';
 }
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -18,12 +15,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     try {
         const isAuthenticated = await authenticateUser(username, password);
         if (isAuthenticated) {
-            window.location.replace(`${BASE_PATH}/index.html`);
+            window.location.href = '../index.html';
         } else {
-            alert('Invalid username or password. Please try again.');
+            alert('Invalid username or password');
         }
     } catch (error) {
-        console.error('Login error:', error);
         alert('Login failed: ' + error.message);
     }
 });
