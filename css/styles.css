@@ -1,3 +1,102 @@
+/* Custom color variables */
+:root {
+    --east-bay: #435a8d;
+    --port-gore: #19193e;
+    --fruit-salad: #499662;
+    --brandy-punch: #c7852a;
+    --pomegranate: #f44336;
+}
+
+/* Navbar styling */
+.navbar {
+    background-color: var(--east-bay) !important; /* Override Bootstrap's bg-primary */
+    padding: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Custom button colors */
+.btn-primary {
+    background-color: var(--east-bay);
+    border-color: var(--east-bay);
+}
+
+.btn-primary:hover {
+    background-color: var(--port-gore);
+    border-color: var(--port-gore);
+}
+
+.btn-success {
+    background-color: var(--fruit-salad);
+    border-color: var(--fruit-salad);
+}
+
+.btn-success:hover {
+    background-color: #3d8053; /* Darker shade of fruit-salad */
+    border-color: #3d8053;
+}
+
+.btn-warning {
+    background-color: var(--brandy-punch);
+    border-color: var(--brandy-punch);
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #b37725; /* Darker shade of brandy-punch */
+    border-color: #b37725;
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--pomegranate);
+    border-color: var(--pomegranate);
+}
+
+.btn-danger:hover {
+    background-color: #d32f2f; /* Darker shade of pomegranate */
+    border-color: #d32f2f;
+}
+
+/* Update badge colors to match */
+.badge.bg-primary {
+    background-color: var(--east-bay) !important;
+}
+
+.badge.bg-success {
+    background-color: var(--fruit-salad) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--brandy-punch) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--pomegranate) !important;
+}
+
+/* Keep your existing styles and add these new ones */
+.content-wrapper {
+    margin-top: 90px;
+    padding: 20px;
+}
+
+/* Update outline button for navbar */
+.btn-outline-light:hover {
+    background-color: var(--port-gore);
+}
+
+/* Table header styling */
+.table thead th {
+    background-color: #f8f9fa;
+    color: #19193e;
+    font-weight: 600;
+    padding: 12px 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+    border-bottom: 2px solid #435a8d;
+}
+
+/* Keep rest of your existing styles */
 body {
     background-color: #f8f9fa;
 }
@@ -9,15 +108,6 @@ body {
 
 .table {
     margin-bottom: 0;
-}
-
-.table thead th {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
-    padding: 12px 16px;
-    font-weight: 600;
-    color: #495057;
-    white-space: nowrap;
 }
 
 .table tbody td {
@@ -164,4 +254,145 @@ body {
 .table-striped > tbody > tr[style*="background-color"]:nth-of-type(even) {
     background-color: #fff3cd !important;
     color: #856404 !important;
+}
+
+/* Add these styles to your existing CSS */
+.navbar-brand {
+    font-size: 1.5rem;
+    color: white !important;
+    font-weight: 600;
+}
+
+.navbar .nav-link {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar .nav-link:hover {
+    color: white !important;
+}
+
+#userDisplay {
+    color: white;
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+/* Make the navbar toggler white for mobile */
+.navbar-toggler {
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+}
+
+/* Active nav items */
+.navbar .nav-link.active {
+    color: white !important;
+    font-weight: 600;
+}
+
+/* Update your existing table styles */
+.table-responsive {
+    margin-top: 1rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    padding: 1px; /* Prevent margin collapse */
+}
+
+/* Add hover effect to table rows */
+.table tbody tr:hover {
+    background-color: rgba(67, 90, 141, 0.05); /* Light east-bay color */
+}
+
+/* Table cell padding */
+.table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+}
+
+/* Striped table rows */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(67, 90, 141, 0.02); /* Very light east-bay color */
+}
+
+/* Search and action bar styling */
+.action-bar {
+    background-color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Search input styling */
+.search-container {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-container i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.search-container input {
+    padding-left: 35px;
+    border-radius: 6px;
+}
+
+/* Action buttons container */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Add New Record button styling */
+.btn-add-record {
+    background-color: var(--fruit-salad);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-add-record:hover {
+    background-color: #3d8053;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-add-record i {
+    font-size: 1.1em;
+}
+
+/* Total records counter styling */
+.records-counter {
+    background-color: var(--east-bay);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.records-counter i {
+    font-size: 1.1em;
+    opacity: 0.9;
 }
