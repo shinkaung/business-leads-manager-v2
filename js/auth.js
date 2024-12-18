@@ -41,6 +41,14 @@ export function isAuthenticated() {
 }
 
 export function logout() {
+    // Clear all session data
     sessionStorage.clear();
-    window.location.replace('../pages/login.html');
+    
+    // Get the base URL for GitHub Pages
+    const baseUrl = window.location.pathname.includes('github.io') 
+        ? '/business-leads-manager'  
+        : '';
+        
+    // Redirect to login page with correct path
+    window.location.replace(`${baseUrl}/pages/login.html`);
 }

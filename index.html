@@ -12,12 +12,16 @@
     <script type="module">
         import { isAuthenticated, logout } from './js/auth.js';
         
-        // Single auth check
+        // Get base URL for GitHub Pages
+        const baseUrl = window.location.pathname.includes('github.io') 
+            ? '/business-leads-manager'  
+            : '';
+        
+        // Single auth check with correct path
         if (!isAuthenticated()) {
-            window.location.replace('./pages/login.html');
+            window.location.replace(`${baseUrl}/pages/login.html`);
         }
 
-        // Make logout available globally
         window.logout = logout;
 
         // Set up username display
