@@ -1,8 +1,12 @@
-import { authenticateUser, isAuthenticated } from './auth.js';
+import { authenticateUser } from './auth.js';
 
-// Redirect if already authenticated
-if (isAuthenticated()) {
-    window.location.replace('../index.html');
+const BASE_PATH = window.location.hostname === 'shinkaung.github.io' 
+    ? '/business-leads-manager'
+    : '';
+
+// Update the redirect path
+if (sessionStorage.getItem('isAuthenticated') === 'true') {
+    window.location.replace(`${BASE_PATH}/index.html`);
 }
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -13,9 +17,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     
     try {
         const isAuthenticated = await authenticateUser(username, password);
-        
         if (isAuthenticated) {
-            window.location.replace('../index.html');
+            window.location.replace(`${BASE_PATH}/index.html`);
         } else {
             alert('Invalid username or password. Please try again.');
         }

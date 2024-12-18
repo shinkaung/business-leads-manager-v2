@@ -12,26 +12,16 @@
     <script type="module">
         import { isAuthenticated, logout } from './js/auth.js';
         
-        // Get base URL for GitHub Pages
-        const baseUrl = window.location.pathname.includes('github.io') 
-            ? '/business-leads-manager'  
-            : '';
-        
-        // Single auth check with correct path
-        if (!isAuthenticated()) {
-            window.location.replace(`${baseUrl}/pages/login.html`);
-        }
-
+        // Make logout available globally
         window.logout = logout;
-
-        // Set up username display
-        document.addEventListener('DOMContentLoaded', () => {
-            const username = sessionStorage.getItem('username');
-            const userDisplay = document.getElementById('userDisplay');
-            if (userDisplay && username) {
-                userDisplay.textContent = `Welcome, ${username}`;
-            }
-        });
+        
+        // Check authentication
+        if (!isAuthenticated()) {
+            const basePath = window.location.hostname === 'shinkaung.github.io' 
+                ? '/business-leads-manager'
+                : '';
+            window.location.replace(`${basePath}/pages/login.html`);
+        }
     </script>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
