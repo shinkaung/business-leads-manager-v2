@@ -1,296 +1,383 @@
-import { fetchAirtableData, updateAirtableRecord } from './airtable.js';
-import { setupSearch, filterRecords, currentSearchTerm } from './search.js';
+import { fetchAirtableData, deleteAirtableRecord } from './shared/airtable.js';
+import { initConfig } from './config.js';
 
-let lastSearchTerm = '';
+// Global variables
+let records = [];
 
-async function displayData(records, highlightId = null) {
-    console.log('DisplayData called with highlightId:', highlightId);
-    const tableBody = document.querySelector('#dataTable tbody');
-    tableBody.innerHTML = '';
-
-    records.forEach(record => {
-        const fields = record.fields;
-        const row = document.createElement('tr');
+async function initializeApp() {
+    try {
+        // Initialize configuration first
+        await initConfig();
         
-        // First set the innerHTML
-        row.innerHTML = `
-            <td>${fields['Contact Person'] || ''}</td>
-            <td>${fields['Position'] || ''}</td>
-            <td>${fields['Tel'] || ''}</td>
-            <td>${fields['Email'] || ''}</td>
-            <td>${fields['Name of outlet'] || ''}</td>
-            <td>${fields['Address'] || ''}</td>
-            <td>${fields['Postal Code'] || ''}</td>
-            <td>${fields['Category'] || ''}</td>
-            <td>${fields['Style/Type of Cuisine'] || ''}</td>
-            <td>${fields['Size of Establishment'] || ''}</td>
-            <td>${fields['Products on Tap'] || ''}</td>
-            <td>${fields['Estimated Monthly Consumption (HL)'] || ''}</td>
-            <td>${fields['Beer Bottle Products'] || ''}</td>
-            <td>${fields['Estimated Monthly Consumption (Cartons)'] || ''}</td>
-            <td>${fields['Soju Products'] || ''}</td>
-            <td>${fields['Proposed Products & HL Target'] || ''}</td>
-            <td>${fields['Follow Up Actions'] || ''}</td>
-            <td>${fields['Remarks'] || ''}</td>
+        // Then proceed with your existing initialization
+        const response = await fetchAirtableData();
+        // Extract records from the response
+        records = response.records || [];
+        console.log('Fetched records:', records);
+        
+        if (!records || records.length === 0) {
+            console.error('No records returned from Airtable');
+            return;
+        }
+        
+        // Render the records
+        renderRecords(records);
+        
+        // Update total records count
+        updateRecordCount(records.length);
+        
+        // Setup search functionality
+        setupSearch();
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        console.error('Full error details:', error.stack);
+    }
+}
+
+function createTableRow(record) {
+    const statusClass = getStatusClass(record.fields['Status']);
+    const statusText = record.fields['Status'] || 'New Lead';
+    
+    return `
+        <tr class="${statusClass}">
+            <td>${record.fields['Contact Person'] || ''}</td>
+            <td>${record.fields['Position'] || ''}</td>
+            <td>${record.fields['Tel'] || ''}</td>
+            <td>${record.fields['Email'] || ''}</td>
+            <td>${record.fields['Name of outlet'] || ''}</td>
+            <td>${record.fields['Address'] || ''}</td>
+            <td>${record.fields['Postal Code'] || ''}</td>
+            <td>${record.fields['Category'] || ''}</td>
+            <td>${record.fields['Style/Type of Cuisine'] || ''}</td>
+            <td>${record.fields['Size of Establishment'] || ''}</td>
+            <td>${record.fields['Products on Tap'] || ''}</td>
+            <td>${record.fields['Estimated Monthly Consumption (HL)'] || ''}</td>
+            <td>${record.fields['Beer Bottle Products'] || ''}</td>
+            <td>${record.fields['Estimated Monthly Consumption (Cartons)'] || ''}</td>
+            <td>${record.fields['Soju Products'] || ''}</td>
+            <td>${record.fields['Proposed Products & HL Target'] || ''}</td>
+            <td>${record.fields['Follow Up Actions'] || ''}</td>
+            <td>${record.fields['Remarks'] || ''}</td>
             <td>
-                <button onclick="editRecord('${record.id}')" class="btn btn-sm btn-primary">Edit</button>
+                <span class="status-badge ${getStatusBadgeClass(record.fields['Status'])}">
+                    ${statusText}
+                </span>
             </td>
-        `;
-        
-        // Then apply highlighting if needed
-        if (highlightId && record.id === highlightId) {
-            console.log('Found matching record to highlight:', record.id);
-            row.id = `record-${record.id}`;
-            
-            // Apply styles to the row and all its cells
-            row.style.backgroundColor = '#fff3cd';
-            row.style.color = '#856404';
-            row.style.borderLeft = '6px solid #ffeeba';
-            
-            // Apply styles to all cells in the row
-            const cells = row.getElementsByTagName('td');
-            Array.from(cells).forEach(cell => {
-                cell.style.backgroundColor = '#fff3cd';
-                cell.style.color = '#856404';
-                cell.style.transition = 'all 0.3s ease';
-            });
-            
-            // Force reflow
-            row.offsetHeight;
-            
-            // Add animation
-            const animation = row.animate([
-                { 
-                    backgroundColor: '#fff3cd',
-                    transform: 'translateX(10px)'
-                },
-                { 
-                    backgroundColor: '#fff3cd',
-                    transform: 'translateX(0)'
-                }
-            ], {
-                duration: 1000,
-                iterations: 1
-            });
-            
-            // Remove highlight after animation (increased to 5 seconds)
-            animation.onfinish = () => {
-                setTimeout(() => {
-                    row.style.backgroundColor = '';
-                    row.style.color = '';
-                    row.style.borderLeft = '';
-                    
-                    // Remove styles from cells
-                    Array.from(cells).forEach(cell => {
-                        cell.style.backgroundColor = '';
-                        cell.style.color = '';
-                    });
-                }, 5000);
-            };
-        }
-        
-        tableBody.appendChild(row);
-    });
+            <td>
+                <button onclick="editLead('${record.id}')" class="btn btn-sm btn-primary">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button onclick="deleteLead('${record.id}')" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+}
 
-    if (highlightId) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        const highlightedRow = document.getElementById(`record-${highlightId}`);
-        if (highlightedRow) {
-            console.log('Scrolling to highlighted row');
-            const tableContainer = document.querySelector('.table-responsive');
-            const headerHeight = document.querySelector('thead').offsetHeight;
-            
-            tableContainer.scrollTo({
-                top: highlightedRow.offsetTop - headerHeight - 50,
-                behavior: 'smooth'
-            });
-        }
-    }
-
-    const recordCount = document.getElementById('recordCount');
-    if (recordCount) {
-        recordCount.textContent = `Total Records: ${records.length}`;
+function getStatusClass(status) {
+    // Convert to lowercase and trim for consistent comparison
+    const normalizedStatus = (status || '').toLowerCase().trim();
+    
+    switch(normalizedStatus) {
+        case 'qualified':
+            return 'status-qualified';
+        case 'existing customer':
+            return 'status-existing';
+        case 'new lead':
+            return 'status-new';
+        default:
+            return ''; // No special styling for unknown status
     }
 }
 
-export { displayData };
-
-async function initializePage() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const highlightId = urlParams.get('highlight');
+function getStatusBadgeClass(status) {
+    // Convert to lowercase and trim for consistent comparison
+    const normalizedStatus = (status || '').toLowerCase().trim();
     
-    const records = await fetchAirtableData();
-    
-    // If we have a highlight parameter, display with highlight
-    if (highlightId) {
-        console.log('Highlighting record:', highlightId);
-        displayData(records, highlightId);
-        
-        // Clear the URL parameter without refreshing the page
-        window.history.replaceState({}, '', window.location.pathname);
-    } else {
-        displayData(records);
+    switch(normalizedStatus) {
+        case 'qualified':
+            return 'status-badge-qualified';
+        case 'existing customer':
+            return 'status-badge-existing';
+        case 'new lead':
+            return 'status-badge-new';
+        default:
+            return 'status-badge-new'; // Default to new lead if status is unknown
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initializePage();
-    setupSearch();
-});
-
-window.editRecord = async function(recordId) {
-    // Remove any existing modal first
-    const existingModal = document.getElementById('editModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    const records = await fetchAirtableData();
-    const record = records.find(r => r.id === recordId);
+function createMobileCard(record) {
+    const statusClass = getStatusClass(record.fields['Status']);
+    const statusText = record.fields['Status'] || '';
     
-    if (!record) {
-        alert('Record not found');
-        return;
-    }
+    return `
+        <div class="mobile-card ${statusClass}" data-record-id="${record.id}">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">${record.fields['Name of outlet'] || 'N/A'}</h5>
+                    <span class="status-badge ${getStatusBadgeClass(record.fields['Status'])}">
+                        ${statusText}
+                    </span>
+                </div>
+                <p class="mb-0">${record.fields['Contact Person'] || 'N/A'} - ${record.fields['Position'] || 'N/A'}</p>
+            </div>
 
-    // Create a form dynamically
-    const form = document.createElement('form');
-    form.id = 'editModalForm';
-    
-    // Rest of your modal HTML remains the same
-    form.innerHTML = `
-        <div class="modal fade" id="editModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Edit Record</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="card-body">
+                <div class="contact-info">
+                    <div class="info-item">
+                        <strong>Tel:</strong>
+                        <span>${record.fields['Tel'] || 'N/A'}</span>
                     </div>
-                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Contact Person</label>
-                                <input type="text" class="form-control" name="Contact Person" value="${record.fields['Contact Person'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Position</label>
-                                <input type="text" class="form-control" name="Position" value="${record.fields['Position'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tel</label>
-                                <input type="tel" class="form-control" name="Tel" value="${record.fields['Tel'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Email</label>
-                                <input type="email" class="form-control" name="Email" value="${record.fields['Email'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Name of outlet</label>
-                                <input type="text" class="form-control" name="Name of outlet" value="${record.fields['Name of outlet'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Address</label>
-                                <input type="text" class="form-control" name="Address" value="${record.fields['Address'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Postal Code</label>
-                                <input type="text" class="form-control" name="Postal Code" value="${record.fields['Postal Code'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Category</label>
-                                <input type="text" class="form-control" name="Category" value="${record.fields['Category'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Style/Type of Cuisine</label>
-                                <input type="text" class="form-control" name="Style/Type of Cuisine" value="${record.fields['Style/Type of Cuisine'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Size of Establishment</label>
-                                <input type="text" class="form-control" name="Size of Establishment" value="${record.fields['Size of Establishment'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Products on Tap</label>
-                                <input type="text" class="form-control" name="Products on Tap" value="${record.fields['Products on Tap'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Estimated Monthly Consumption (HL)</label>
-                                <input type="text" class="form-control" name="Estimated Monthly Consumption (HL)" value="${record.fields['Estimated Monthly Consumption (HL)'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Beer Bottle Products</label>
-                                <input type="text" class="form-control" name="Beer Bottle Products" value="${record.fields['Beer Bottle Products'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Estimated Monthly Consumption (Cartons)</label>
-                                <input type="text" class="form-control" name="Estimated Monthly Consumption (Cartons)" value="${record.fields['Estimated Monthly Consumption (Cartons)'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Soju Products</label>
-                                <input type="text" class="form-control" name="Soju Products" value="${record.fields['Soju Products'] || ''}">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Proposed Products & HL Target</label>
-                                <input type="text" class="form-control" name="Proposed Products & HL Target" value="${record.fields['Proposed Products & HL Target'] || ''}">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Follow Up Actions</label>
-                                <textarea class="form-control" name="Follow Up Actions" rows="3">${record.fields['Follow Up Actions'] || ''}</textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Remarks</label>
-                                <textarea class="form-control" name="Remarks" rows="3">${record.fields['Remarks'] || ''}</textarea>
-                            </div>
+                    <div class="info-item">
+                        <strong>Email:</strong>
+                        <span>${record.fields['Email'] || 'N/A'}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Address:</strong>
+                        <span>${record.fields['Address'] || 'N/A'}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Category:</strong>
+                        <span>${record.fields['Category'] || 'N/A'}</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button onclick="viewDetails('${record.id}')" class="btn btn-secondary view-details-btn">
+                        View Details
+                    </button>
+                    <button onclick="editLead('${record.id}')" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button onclick="deleteLead('${record.id}')" class="btn btn-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+
+                <div class="details-section" style="display: none;">
+                    <hr>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <strong>Contact Person:</strong>
+                            <span>${record.fields['Contact Person'] || 'N/A'}</span>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Save changes</button>
+                        <div class="detail-item">
+                            <strong>Position:</strong>
+                            <span>${record.fields['Position'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Tel:</strong>
+                            <span>${record.fields['Tel'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Email:</strong>
+                            <span>${record.fields['Email'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Name of outlet:</strong>
+                            <span>${record.fields['Name of outlet'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Address:</strong>
+                            <span>${record.fields['Address'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Postal Code:</strong>
+                            <span>${record.fields['Postal Code'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Category:</strong>
+                            <span>${record.fields['Category'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Style/Type of Cuisine:</strong>
+                            <span>${record.fields['Style/Type of Cuisine'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Size of Establishment:</strong>
+                            <span>${record.fields['Size of Establishment'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Products on Tap:</strong>
+                            <span>${record.fields['Products on Tap'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Estimated Monthly Consumption (HL):</strong>
+                            <span>${record.fields['Estimated Monthly Consumption (HL)'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Beer Bottle Products:</strong>
+                            <span>${record.fields['Beer Bottle Products'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Estimated Monthly Consumption (Cartons):</strong>
+                            <span>${record.fields['Estimated Monthly Consumption (Cartons)'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Soju Products:</strong>
+                            <span>${record.fields['Soju Products'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Proposed Products & HL Target:</strong>
+                            <span>${record.fields['Proposed Products & HL Target'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Follow Up Actions:</strong>
+                            <span>${record.fields['Follow Up Actions'] || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <strong>Remarks:</strong>
+                            <span>${record.fields['Remarks'] || 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     `;
+}
 
-    // Add form submit handler
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const formData = new FormData(form);
-        const updatedFields = {};
-        formData.forEach((value, key) => {
-            if (value) updatedFields[key] = value;
+export function renderRecords(records) {
+    const tbody = document.querySelector('#dataTable tbody');
+    const mobileCards = document.querySelector('.mobile-cards');
+    
+    // Clear existing content
+    if (tbody) tbody.innerHTML = '';
+    if (mobileCards) mobileCards.innerHTML = '';
+    
+    records.forEach(record => {
+        // Render table row for desktop
+        if (tbody) {
+            tbody.innerHTML += createTableRow(record);
+        }
+        
+        // Render mobile card
+        if (mobileCards) {
+            mobileCards.innerHTML += createMobileCard(record);
+        }
+    });
+}
+
+function updateRecordCount(count) {
+    const countElement = document.querySelector('.records-counter strong');
+    if (countElement) {
+        countElement.textContent = count;
+    }
+}
+
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredRecords = records.filter(record => 
+                record.fields['Contact Person']?.toLowerCase().includes(searchTerm) ||
+                record.fields['Name of outlet']?.toLowerCase().includes(searchTerm) ||
+                record.fields['Address']?.toLowerCase().includes(searchTerm)
+            );
+            renderRecords(filteredRecords);
+            updateRecordCount(filteredRecords.length);
+        });
+    }
+}
+
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Make functions available globally
+window.showDetails = function(recordId) {
+    const record = records.find(r => r.id === recordId);
+    if (record) {
+        // Implement modal or detailed view here
+        console.log('Full record details:', record);
+    }
+};
+
+function editLead(id) {
+    const returnTo = 'index';
+    getBasePath().then(basePath => {
+        window.location.href = `${basePath}/pages/edit.html?id=${id}&returnTo=${returnTo}`;
+    });
+}
+
+// Make editLead available globally
+window.editLead = editLead;
+
+async function loadRecords() {
+    const tableBody = document.querySelector('.table tbody');
+    if (!tableBody) {
+        console.error('Table body not found');
+        return;
+    }
+
+    try {
+        const response = await fetchAirtableData();
+        // Extract records from the response
+        const records = response.records || [];
+        
+        if (!records || records.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="19">No records found</td></tr>';
+            return;
+        }
+
+        // Clear existing content
+        tableBody.innerHTML = '';
+
+        // Add each record
+        records.forEach(record => {
+            tableBody.innerHTML += createTableRow(record);
         });
 
-        try {
-            await updateAirtableRecord(recordId, updatedFields);
-            const modalInstance = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-            modalInstance.hide();
-            
-            // Wait for modal to close
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            const updatedRecords = await fetchAirtableData();
-            const recordsToDisplay = currentSearchTerm ? 
-                updatedRecords.filter(record => {
-                    const fields = record.fields;
-                    return (
-                        (fields['Contact Person'] || '').toLowerCase().includes(currentSearchTerm) ||
-                        (fields['Name of outlet'] || '').toLowerCase().includes(currentSearchTerm) ||
-                        (fields['Category'] || '').toLowerCase().includes(currentSearchTerm)
-                    );
-                }) : 
-                updatedRecords;
-            
-            console.log('About to display data with recordId:', recordId);
-            await displayData(recordsToDisplay, recordId);
-            
-            alert('Record updated successfully!');
-        } catch (error) {
-            console.error('Error updating record:', error);
-            alert('Error updating record: ' + error.message);
+        // Update total records count
+        const totalRecordsElement = document.querySelector('[data-total-records]');
+        if (totalRecordsElement) {
+            totalRecordsElement.textContent = `Total Records: ${records.length}`;
         }
-    };
 
-    document.body.appendChild(form);
-    const modal = new bootstrap.Modal(document.getElementById('editModal'));
-    modal.show();
+    } catch (error) {
+        console.error('Error loading records:', error);
+        tableBody.innerHTML = '<tr><td colspan="19">Error loading records</td></tr>';
+    }
+}
+
+// Make sure these functions are available globally
+window.editLead = editLead;
+window.deleteLead = deleteLead;
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', loadRecords);
+
+async function deleteLead(id) {
+    if (!confirm('Are you sure you want to delete this record?')) {
+        return;
+    }
+
+    try {
+        await deleteAirtableRecord(id);
+        alert('Record deleted successfully');
+        // Reload the table
+        await loadRecords();
+    } catch (error) {
+        console.error('Error deleting record:', error);
+        alert('Error deleting record: ' + error.message);
+    }
+}
+
+// Add the toggle details function
+window.toggleDetails = function(button) {
+    const detailsSection = button.closest('.card-body').querySelector('.details-section');
+    if (detailsSection) {
+        detailsSection.style.display = detailsSection.style.display === 'none' ? 'block' : 'none';
+    }
+};
+
+// Add this function definition
+window.viewDetails = function(recordId) {
+    const card = document.querySelector(`.mobile-card[data-record-id="${recordId}"]`);
+    if (card) {
+        const detailsSection = card.querySelector('.details-section');
+        if (detailsSection) {
+            detailsSection.style.display = detailsSection.style.display === 'none' ? 'block' : 'none';
+        }
+    }
 };

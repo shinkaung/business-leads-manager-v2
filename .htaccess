@@ -1,0 +1,47 @@
+# Deny access to .env file
+<Files .env>
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Deny access to .git directory
+RedirectMatch 404 /\.git
+
+# Prevent directory listing
+Options -Indexes
+
+# Enable rewrite engine
+RewriteEngine On
+
+# Dynamically set the RewriteBase based on environment
+# Check if running on Vercel
+RewriteCond %{ENV:VERCEL} ^1$
+RewriteRule .* - [E=BASE:/]
+
+# Check if running locally
+RewriteCond %{ENV:VERCEL} ^$
+RewriteRule .* - [E=BASE:/business-leads-manager/]
+
+RewriteBase %{ENV:BASE}
+
+# Ensure the request isn't for an existing file or directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Handle API requests
+RewriteRule ^api/(.*)$ backend/api/$1 [L,QSA]
+
+# Handle other requests
+RewriteRule ^(.*)$ $1 [L,QSA]
+
+# PHP handling
+<FilesMatch "\.php$">
+    Require all granted
+</FilesMatch>
+
+AddHandler application/x-httpd-php .php
+
+# Force HTTPS on Heroku
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]

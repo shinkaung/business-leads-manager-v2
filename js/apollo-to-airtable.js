@@ -1,12 +1,6 @@
-// Configuration
-const APOLLO_API_KEY = 'WcM0jRp82ZgKDc_qS4jMIg';
-const AIRTABLE_API_KEY = 'pataBu2eaV0V5tEHx.2fde3b7ffdc42d856e167a7551f74f8770a41af956087fa09a2df831fd632c3c';
-const AIRTABLE_BASE_ID = 'app5GPyIEcYQTRgST';
-const AIRTABLE_TABLE_NAME = 'tblIL5ZHWNkMDM0sV';
-
-// Apollo API endpoints
-const APOLLO_SEARCH_URL = 'https://api.apollo.io/api/v1/people/search';
-const APOLLO_BULK_ENRICH_URL = 'https://api.apollo.io/api/v1/people/bulk_match';
+import { getEndpoints } from './shared/api.js';
+import { getBasePath } from './config.js';
+// PapaParse is loaded globally via script tag
 
 // Add a function to update the status on the page
 function updateStatus(message) {
@@ -20,7 +14,6 @@ function updateStatus(message) {
 async function searchApollo() {
     updateStatus('🔍 Starting Apollo search...');
     const searchParams = {
-        api_key: APOLLO_API_KEY,
         q: {
             titles: ["F&B director", "beverage director", "beverage manager", "purchaser"],
             current_location: ["Singapore"],
@@ -32,7 +25,8 @@ async function searchApollo() {
 
     try {
         updateStatus('📤 Sending request to Apollo API...');
-        const response = await fetch('https://api.apollo.io/api/v1/people/search', {
+        const basePath = await getBasePath();
+        const response = await fetch(`${basePath}/backend/api/apollo/search.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -48,9 +42,6 @@ async function searchApollo() {
 
         const data = await response.json();
         updateStatus(`✅ Found ${data.contacts?.length || 0} people in Apollo`);
-        
-        // Log the raw response to help debug
-        console.log('Apollo API Response:', data);
         
         return transformApolloData(data.contacts || []);
     } catch (error) {
@@ -71,10 +62,26 @@ function transformApolloData(apolloPeople) {
             person.other_phone,
             person.company_phone,
             person.phone
-        ].filter(phone => phone); // Filter out null/undefined/empty values
+        ].filter(phone => phone);
 
         // Get the first available phone number, or empty string if none exists
-        const primaryPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : '';
+        let primaryPhone = phoneNumbers.length > 0 ? phoneNumbers[0] : '';
+        
+        if (primaryPhone) {
+            primaryPhone = primaryPhone
+                .replace(/'/g, '')  // Remove single quotes
+                .replace(/\s+/g, '') // Remove spaces
+                .trim();
+
+            // Add +65 prefix if missing for Singapore numbers
+            if (primaryPhone.match(/^[6|8|9]\d{7}$/)) {
+                primaryPhone = '+65' + primaryPhone;
+            }
+            // Remove international numbers that aren't Singapore format
+            else if (primaryPhone.match(/^\+(?!65)/)) {
+                primaryPhone = '';
+            }
+        }
 
         // Map company size to your establishment size categories
         let sizeCategory = '';
@@ -89,6 +96,7 @@ function transformApolloData(apolloPeople) {
 
         return {
             fields: {
+                'Status': 'New Lead',
                 'Contact Person': `${person.first_name || ''} ${person.last_name || ''}`.trim(),
                 'Position': person.title || '',
                 'Tel': primaryPhone,
@@ -97,9 +105,7 @@ function transformApolloData(apolloPeople) {
                 'Address': person.organization?.street_address || '',
                 'Postal Code': person.organization?.postal_code || '',
                 'Size of Establishment': sizeCategory,
-                'Category (MOT - Club, Restaurant, Pub, Bistro, Cocktail Bar) (TOT - Coffeeshop, KTV)': 
-                    person.organization?.industry || '',
-                // Initialize other fields as empty strings
+                'Category': person.organization?.industry || '',
                 'Style/Type of Cuisine': '',
                 'Products on Tap': '',
                 'Estimated Monthly Consumption (HL)': '',
@@ -115,30 +121,50 @@ function transformApolloData(apolloPeople) {
 }
 
 async function importToAirtable(records) {
-    updateStatus(`📥 Attempting to import ${records.length} records to Airtable...`);
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${AIRTABLE_TABLE_NAME}`;
-    
+    updateStatus(`📥 Starting import of ${records.length} records to Airtable...`);
     try {
-        const response = await fetch(url, {
+        const endpoints = await getEndpoints();
+        
+        // Check for duplicates first
+        const response = await fetch(endpoints.LEADS_CHECK_DUPLICATES, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${AIRTABLE_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ records })
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(`Airtable Error: ${JSON.stringify(errorData)}`);
+            throw new Error(`Duplicate check failed: ${JSON.stringify(errorData)}`);
         }
 
-        const result = await response.json();
-        updateStatus(`✅ Successfully imported ${result.records?.length || 0} records to Airtable`);
-        return result;
+        const { newRecords, duplicates } = await response.json();
+        
+        if (duplicates > 0) {
+            updateStatus(`ℹ️ Found ${duplicates} existing records that will be skipped`);
+        }
+
+        if (newRecords.length === 0) {
+            updateStatus('ℹ️ No new records to import');
+            return 0;
+        }
+
+        // Import new records
+        const importResponse = await fetch(endpoints.LEADS_BULK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: newRecords })
+        });
+
+        if (!importResponse.ok) {
+            const errorData = await importResponse.json();
+            throw new Error(`Import failed: ${JSON.stringify(errorData)}`);
+        }
+
+        const result = await importResponse.json();
+        updateStatus(`🎉 Import complete! New records imported: ${result.imported}, Duplicates skipped: ${duplicates}`);
+        return result.imported;
     } catch (error) {
-        updateStatus(`❌ Error importing to Airtable: ${error.message}`);
-        console.error('Full error:', error);
+        updateStatus(`❌ Import failed: ${error.message}`);
         throw error;
     }
 }
@@ -152,7 +178,6 @@ async function runExportImport() {
             updateStatus(`📊 Transformed ${apolloData.length} records, preparing for Airtable import...`);
             const result = await importToAirtable(apolloData);
             updateStatus('✨ Export/Import process completed successfully!');
-            // Log the first record as an example
             console.log('Example record:', apolloData[0]);
         } else {
             updateStatus('⚠️ No records found in Apollo');
@@ -163,9 +188,177 @@ async function runExportImport() {
     }
 }
 
-// Export functions for use in other files if needed
+// Field mappings configuration
+const FIELD_MAPPINGS = {
+    "Title": "Position",
+    "Work Direct Phone": "Tel",
+    "Home Phone": "Tel",
+    "Mobile Phone": "Tel",
+    "Corporate Phone": "Tel",
+    "Other Phone": "Tel",
+    "Company Phone": "Tel",
+    "Email": "Email",
+    "Company": "Name of outlet",
+    "Company Address": "Address",
+    "# Employees": "Size of Establishment",
+    "Industry": "Category"
+};
+
+function transformApolloCSVData(csvRecord) {
+    // Helper function to get value from mapped fields
+    const getMappedValue = (targetField) => {
+        const sourceFields = Object.entries(FIELD_MAPPINGS)
+            .filter(([_, target]) => target === targetField)
+            .map(([source, _]) => source);
+
+        for (const field of sourceFields) {
+            // Handle null, undefined, and convert numbers to strings
+            if (csvRecord[field] != null && csvRecord[field] !== '') {
+                const value = String(csvRecord[field]).trim();
+                if (value) return value;
+            }
+        }
+        return '';
+    };
+
+    // Handle Contact Person
+    const contactPerson = csvRecord['Contact Person'] || 
+        `${csvRecord['First Name'] || ''} ${csvRecord['Last Name'] || ''}`.trim();
+
+    // Handle Phone Numbers
+    let phoneNumber = getMappedValue('Tel');
+    if (phoneNumber) {
+        // Clean phone number format
+        phoneNumber = phoneNumber
+            .replace(/'/g, '')  // Remove single quotes
+            .replace(/\s+/g, '') // Remove spaces
+            .trim();
+
+        // Add +65 prefix if missing for Singapore numbers
+        if (phoneNumber.match(/^[6|8|9]\d{7}$/)) {
+            phoneNumber = '+65' + phoneNumber;
+        }
+        // Format existing Singapore numbers
+        else if (phoneNumber.match(/^\+65[6|8|9]\d{7}$/)) {
+            // Already correctly formatted
+        }
+        // Remove international numbers that aren't Singapore format
+        else if (phoneNumber.match(/^\+(?!65)/)) {
+            phoneNumber = '';
+        }
+    }
+
+    // Handle Address and Postal Code
+    let address = getMappedValue('Address');
+    let postalCode = '';
+    
+    if (address) {
+        // Skip if address is a URL or LinkedIn
+        if (address.includes('http') || address.toLowerCase().includes('linkedin')) {
+            address = '';
+        } 
+        // Skip if address is just a generic location
+        else if (['singapore', 'milan', 'culinary', 'bars'].includes(address.toLowerCase().trim())) {
+            address = '';
+        }
+        // Process valid address
+        else {
+            // Extract postal code
+            const postalMatch = address.match(/(\d{6}|\d{5})/);
+            if (postalMatch) {
+                postalCode = postalMatch[1];
+                // Remove postal code from address
+                address = address.replace(postalMatch[1], '');
+            }
+            
+            // Clean up address format
+            address = address
+                .replace(/,\s*Singapore\s*,\s*Singapore/i, ', Singapore')
+                .replace(/,\s*Singapore$/i, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+    }
+
+    // Handle Size of Establishment
+    let sizeCategory = '';
+    const employeeCount = parseInt(csvRecord['# Employees'] || '0');
+    if (employeeCount <= 50) {
+        sizeCategory = 'Small (<100 pax)';
+    } else if (employeeCount <= 200) {
+        sizeCategory = 'Medium (100-200 pax)';
+    } else {
+        sizeCategory = 'Large (200+ pax)';
+    }
+
+    return {
+        fields: {
+            'Status': 'New Lead',
+            'Contact Person': contactPerson,
+            'Position': getMappedValue('Position'),
+            'Tel': phoneNumber,
+            'Email': getMappedValue('Email'),
+            'Name of outlet': getMappedValue('Name of outlet'),
+            'Address': address,
+            'Postal Code': postalCode,
+            'Size of Establishment': sizeCategory,
+            'Category': getMappedValue('Category'),
+            'Style/Type of Cuisine': '',
+            'Products on Tap': '',
+            'Estimated Monthly Consumption (HL)': '',
+            'Beer Bottle Products': '',
+            'Estimated Monthly Consumption (Cartons)': '',
+            'Soju Products': '',
+            'Proposed Products & HL Target': '',
+            'Follow Up Actions': '',
+            'Remarks': ''
+        }
+    };
+}
+
+async function handleCSVImport(csvFile) {
+    updateStatus('📑 Processing CSV file...');
+    try {
+        const text = await csvFile.text();
+        
+        // Use global Papa object for parsing
+        const parsedData = window.Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true, // This will automatically convert numbers and booleans
+            transformHeader: header => header.trim(),
+            transform: value => {
+                if (value === null || value === undefined) return '';
+                return String(value).trim();
+            }
+        });
+
+        if (parsedData.errors.length > 0) {
+            console.warn('CSV parsing warnings:', parsedData.errors);
+        }
+
+        console.log('Parsed CSV Data:', parsedData);
+        
+        const records = parsedData.data
+            .filter(row => Object.values(row).some(value => value)) // Skip completely empty rows
+            .map(record => {
+                console.log('Processing record:', record);
+                const transformed = transformApolloCSVData(record);
+                console.log('Transformed record:', transformed);
+                return transformed;
+            });
+
+        updateStatus(`✅ Processed ${records.length} records from CSV`);
+        return records;
+    } catch (error) {
+        updateStatus(`❌ Error processing CSV: ${error.message}`);
+        throw error;
+    }
+}
+
 export {
-    runExportImport,
-    searchApollo,
-    importToAirtable
-}; 
+    handleCSVImport,
+    transformApolloCSVData,
+    importToAirtable,
+    runExportImport
+};
