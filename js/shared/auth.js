@@ -2,20 +2,31 @@ import { getBasePath } from '../config.js';
 
 export async function authenticateUser(username, password) {
     try {
-        const response = await fetch('/business-leads-manager/backend/api/auth.php', {
+        const basePath = await getBasePath();
+        const response = await fetch(`${basePath}/backend/api/auth.php`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify({ username, password })
         });
         
-        const data = await response.json();
-        console.log('Auth response:', data);
+        const text = await response.text(); // Get response as text first
         
-        if (!response.ok) {
-            throw new Error(data.message || 'Authentication failed');
+        try {
+            const data = JSON.parse(text);
+            console.log('Auth response:', data);
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Authentication failed');
+            }
+            
+            return data;
+        } catch (e) {
+            console.error('Response text:', text);
+            throw new Error('Invalid server response');
         }
-        
-        return data;
     } catch (error) {
         console.error('Auth error:', error);
         return { 

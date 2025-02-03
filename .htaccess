@@ -1,3 +1,9 @@
+# Basic security headers
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-XSS-Protection "1; mode=block"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
 # Deny access to .env file
 <Files .env>
     Order allow,deny
@@ -10,38 +16,38 @@ RedirectMatch 404 /\.git
 # Prevent directory listing
 Options -Indexes
 
+# Enable CORS
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+
 # Enable rewrite engine
 RewriteEngine On
 
-# Dynamically set the RewriteBase based on environment
-# Check if running on Vercel
-RewriteCond %{ENV:VERCEL} ^1$
-RewriteRule .* - [E=BASE:/]
+# Modified environment variable setting
+SetEnvIf Host ".*" BASE_PATH=/business-leads-manager
+SetEnvIf Host "^.*\.vercel\.app$" BASE_PATH=
 
-# Check if running locally
-RewriteCond %{ENV:VERCEL} ^$
-RewriteRule .* - [E=BASE:/business-leads-manager/]
+# Add this to ensure PHP files are handled correctly in XAMPP
+<IfModule mod_php.c>
+    AddType application/x-httpd-php .php
+</IfModule>
 
-RewriteBase %{ENV:BASE}
+# Modified rewrite rules
+RewriteBase /business-leads-manager
 
-# Ensure the request isn't for an existing file or directory
+# Handle API requests - Modified to ensure proper path resolution
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^backend/api/(.*)$ backend/api/$1 [L,QSA]
 
-# Handle API requests
-RewriteRule ^api/(.*)$ backend/api/$1 [L,QSA]
-
-# Handle other requests
-RewriteRule ^(.*)$ $1 [L,QSA]
-
-# PHP handling
+# Ensure PHP files are handled correctly
 <FilesMatch "\.php$">
-    Require all granted
+    SetHandler application/x-httpd-php
 </FilesMatch>
 
 AddHandler application/x-httpd-php .php
 
-# Force HTTPS on Heroku
-RewriteCond %{HTTP:X-Forwarded-Proto} !https
-RewriteCond %{HTTPS} off
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+# Add proper MIME type for JavaScript
+AddType application/javascript .js
+AddType application/json .json

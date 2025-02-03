@@ -4,46 +4,53 @@ export async function initConfig() {
     if (config) return config;
     
     try {
-        // Check if running on Vercel
-        const isVercel = window.location.hostname.includes('vercel.app');
-        const basePath = isVercel ? '' : '/business-leads-manager';
+        const isLocalhost = window.location.hostname.match(/^(localhost|127\.0\.0\.1)$/i);
+        const basePath = isLocalhost ? '/business-leads-manager' : '';
         
-        const response = await fetch(`${basePath}/backend/api/config.php`);
-        let responseText = await response.text();
+        // Add timeout and retry logic for Vercel deployments
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        // Try to detect if we received HTML instead of JSON
-        if (responseText.trim().startsWith('<')) {
-            console.error('Received HTML instead of JSON:', responseText);
-            throw new Error('Server returned HTML instead of JSON');
-        }
+        const response = await fetch(`${basePath}/backend/api/config.php`, {
+            headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+            },
+            signal: controller.signal
+        });
 
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const responseText = await response.text();
+        
         try {
             config = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse response:', responseText);
-            throw new Error(`Invalid JSON response: ${parseError.message}`);
+        } catch (e) {
+            console.error('Response text:', responseText);
+            throw new Error('Failed to parse JSON response');
         }
 
-        // Override BASE_PATH based on environment
         config.BASE_PATH = basePath;
-
-        if (!config.BASE_PATH || !config.API_ENDPOINTS) {
-            throw new Error('Invalid configuration format');
-        }
-
         return config;
     } catch (error) {
-        console.error('Error loading configuration:', error);
-        throw new Error(`Failed to load configuration: ${error.message}`);
+        if (error.name === 'AbortError') {
+            console.error('Request timeout - please try again');
+        }
+        console.error('Config initialization error:', error);
+        throw error;
     }
 }
 
-export async function getBasePath() {
-    const cfg = await initConfig();
-    return cfg.BASE_PATH;
+export function getBasePath() {
+    const isVercel = !window.location.hostname.match(/^(localhost|127\.0\.0\.1)$/i);
+    return isVercel ? '' : '/business-leads-manager';
 }
 
 export async function getApiEndpoints() {
     const cfg = await initConfig();
     return cfg.API_ENDPOINTS;
-} 
+}

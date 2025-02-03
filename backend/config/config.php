@@ -1,48 +1,59 @@
 <?php
-// Load environment variables
-require_once __DIR__ . '/env.php';
-loadEnv();
+// Prevent direct access
+if (!defined('SECURE_ACCESS')) {
+    define('SECURE_ACCESS', true);
+}
 
-// Strict error handling
+// Error handling
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', dirname(__DIR__) . '/logs/error.log');
 
-// Prevent any output before headers
+// Buffer output
 ob_start();
 
-// Essential path definitions
-define('PROJECT_ROOT', dirname(dirname(__DIR__))); 
-define('BASE_PATH', ''); // Empty for Vercel
-define('API_PATH', '/api');
+// Load environment variables
+if (file_exists(__DIR__ . '/env.php')) {
+    require_once __DIR__ . '/env.php';
+    loadEnv();
+}
+
+// Define paths
+define('BASE_PATH', '/business-leads-manager');
+define('API_PATH', '/backend/api');
 
 // Create an array of API endpoints
 $endpoints = [
-    'LEADS' => API_PATH . '/leads.php',
-    'LEADS_CHECK_DUPLICATES' => API_PATH . '/leads/check-duplicates.php',
-    'LEADS_BULK' => API_PATH . '/leads/bulk.php',
-    'PRODUCTS' => API_PATH . '/products.php',
-    'SEARCH' => API_PATH . '/search.php'
+    'LEADS' => BASE_PATH . API_PATH . '/leads.php',
+    'LEADS_CHECK_DUPLICATES' => BASE_PATH . API_PATH . '/leads/check-duplicates.php',
+    'LEADS_BULK' => BASE_PATH . API_PATH . '/leads/bulk.php',
+    'PRODUCTS' => BASE_PATH . API_PATH . '/products.php',
+    'SEARCH' => BASE_PATH . API_PATH . '/search.php'
 ];
 
 define('API_ENDPOINTS', json_encode($endpoints));
 
-// Database configuration using environment variables
+// Database configuration
 define('AIRTABLE_API_KEY', getenv('AIRTABLE_API_KEY'));
 define('AIRTABLE_BASE_ID', getenv('AIRTABLE_BASE_ID'));
 define('AIRTABLE_TABLE_NAME', getenv('AIRTABLE_TABLE_NAME'));
-define('USERS_TABLE_NAME', getenv('USERS_TABLE_NAME'));
-define('PRODUCTS_BASE_ID', getenv('PRODUCTS_BASE_ID'));
-define('PRODUCTS_TABLE_NAME', getenv('PRODUCTS_TABLE_NAME'));
 
-// CORS settings
+// Set headers for API responses
+header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('Content-Type: application/json');
 
-// Clear any existing output buffers
+// Clear any existing output
 while (ob_get_level()) {
     ob_end_clean();
+}
+
+// Add these constants if they're not defined elsewhere
+if (!defined('APOLLO_SEARCH_URL')) {
+    define('APOLLO_SEARCH_URL', getenv('APOLLO_SEARCH_URL'));
+}
+if (!defined('APOLLO_BULK_ENRICH_URL')) {
+    define('APOLLO_BULK_ENRICH_URL', getenv('APOLLO_BULK_ENRICH_URL'));
 }
