@@ -1,14 +1,18 @@
 {
   "version": 2,
   "functions": {
-    "api/*.php": {
-      "runtime": "vercel-php@0.7.0"
-    },
     "api/**/*.php": {
       "runtime": "vercel-php@0.7.0"
     }
   },
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" }
-  ]
-} 
+    { "src": "/(.*)\\.php$", "dest": "/api/$1.php" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ],
+  "build": {
+    "env": {
+      "PHP_EXTENSION": ["curl", "json"]
+    }
+  }
+}
