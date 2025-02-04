@@ -20,8 +20,8 @@ if (file_exists(__DIR__ . '/env.php')) {
 }
 
 // Define paths
-define('BASE_PATH', '/business-leads-manager');
-define('API_PATH', '/backend/api');
+define('BASE_PATH', '');
+define('API_PATH', '/api');
 
 // Create an array of API endpoints
 $endpoints = [
@@ -38,6 +38,10 @@ define('API_ENDPOINTS', json_encode($endpoints));
 define('AIRTABLE_API_KEY', getenv('AIRTABLE_API_KEY'));
 define('AIRTABLE_BASE_ID', getenv('AIRTABLE_BASE_ID'));
 define('AIRTABLE_TABLE_NAME', getenv('AIRTABLE_TABLE_NAME'));
+
+// Products configuration
+define('PRODUCTS_BASE_ID', getenv('PRODUCTS_BASE_ID'));
+define('PRODUCTS_TABLE_NAME', getenv('PRODUCTS_TABLE_NAME'));
 
 // Set headers for API responses
 header('Content-Type: application/json');

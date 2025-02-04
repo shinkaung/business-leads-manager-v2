@@ -11,7 +11,7 @@ export async function initConfig() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch(`${basePath}/backend/api/config.php`, {
+        const response = await fetch(`${basePath}/api/config.php`, {
             headers: {
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache'

@@ -1,6 +1,6 @@
 <?php
-require_once '../config/config.php';
-require_once '../utils/AirtableClient.php';
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../utils/AirtableClient.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {

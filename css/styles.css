@@ -353,6 +353,9 @@ body {
 .search-container input {
     padding-left: 35px;
     border-radius: 6px;
+    width: 100%;
+    border: 1px solid #ddd;
+    padding: 8px 12px 8px 35px;
 }
 
 /* Action buttons container */

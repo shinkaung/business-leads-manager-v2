@@ -7,31 +7,39 @@ async function initializeAutocomplete() {
     try {
         console.log('Initializing autocomplete...');
         
-        // Fetch data from both bases in parallel
-        const [leadsResponse, productsResponse] = await Promise.all([
+        // Fetch data from both bases with better error handling
+        const [leadsResponse, productsResponse] = await Promise.allSettled([
             fetchAirtableData(),
             fetchProductsData()
         ]);
         
-        const leadsRecords = leadsResponse.records || [];
-        const productRecords = productsResponse.records || [];
-        
-        console.log('Fetched leads:', leadsRecords);
-        console.log('Fetched products:', productRecords);
+        // Handle leads data
+        if (leadsResponse.status === 'fulfilled') {
+            const leadsRecords = leadsResponse.value.records || [];
+            console.log('Fetched leads:', leadsRecords);
+            
+            leadsRecords.forEach(record => {
+                if (record.fields['Name of outlet']) {
+                    outlets.add(record.fields['Name of outlet']);
+                }
+            });
+        } else {
+            console.warn('Failed to fetch leads:', leadsResponse.reason);
+        }
 
-        // Extract unique outlet names from leads
-        leadsRecords.forEach(record => {
-            if (record.fields['Name of outlet']) {
-                outlets.add(record.fields['Name of outlet']);
-            }
-        });
-
-        // Extract unique product names from products base
-        productRecords.forEach(record => {
-            if (record.fields['Name']) {
-                products.add(record.fields['Name']);
-            }
-        });
+        // Handle products data
+        if (productsResponse.status === 'fulfilled') {
+            const productRecords = productsResponse.value.records || [];
+            console.log('Fetched products:', productRecords);
+            
+            productRecords.forEach(record => {
+                if (record.fields['Name']) {
+                    products.add(record.fields['Name']);
+                }
+            });
+        } else {
+            console.warn('Failed to fetch products:', productsResponse.reason);
+        }
 
         console.log('Outlets:', Array.from(outlets));
         console.log('Products:', Array.from(products));

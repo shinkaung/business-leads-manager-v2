@@ -47,9 +47,22 @@
     <div class="content-wrapper">
         <!-- Database Section -->
         <div id="database-section" class="content-section active">
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Search leads...">
-                <i class="bi bi-search"></i>
+            <div class="action-bar">
+                <div class="search-container">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search...">
+                </div>
+                
+                <div class="action-buttons">
+                    <a href="add-salesman.html" class="btn btn-add-record">
+                        <i class="bi bi-plus-circle"></i>
+                        Add New Lead
+                    </a>
+                    <div class="records-counter">
+                        <i class="bi bi-table"></i>
+                        <span>Total Records: <strong id="recordCount">0</strong></span>
+                    </div>
+                </div>
             </div>
             
             <!-- Add table view for desktop -->

@@ -1,8 +1,8 @@
 <?php
 // Fix the path resolution using __FILE__
-$baseDir = dirname(dirname(dirname(__FILE__))); // Gets the business-leads-manager/backend directory
-require_once $baseDir . '/config/config.php';
-require_once $baseDir . '/utils/AirtableClient.php';
+$baseDir = dirname(dirname(__FILE__)); // Gets the root directory
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../utils/AirtableClient.php';
 
 header('Content-Type: application/json');
 

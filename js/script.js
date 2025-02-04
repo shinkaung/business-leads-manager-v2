@@ -1,5 +1,5 @@
 import { fetchAirtableData, deleteAirtableRecord } from './shared/airtable.js';
-import { initConfig } from './config.js';
+import { initConfig, getBasePath } from './config.js';
 
 // Global variables
 let records = [];
@@ -275,16 +275,23 @@ export function renderRecords(records) {
         );
     }
     
+    // Render desktop table view
     const tableBody = document.querySelector('.table tbody');
-    if (!tableBody) return;
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        filteredRecords.forEach(record => {
+            tableBody.innerHTML += createTableRow(record);
+        });
+    }
     
-    // Clear existing content
-    tableBody.innerHTML = '';
-    
-    // Add filtered records
-    filteredRecords.forEach(record => {
-        tableBody.innerHTML += createTableRow(record);
-    });
+    // Render mobile cards view
+    const mobileCardsContainer = document.querySelector('.mobile-cards');
+    if (mobileCardsContainer) {
+        mobileCardsContainer.innerHTML = '';
+        filteredRecords.forEach(record => {
+            mobileCardsContainer.innerHTML += createMobileCard(record);
+        });
+    }
     
     // Update total records count
     updateRecordCount(filteredRecords.length);
@@ -313,32 +320,12 @@ function setupSearch() {
     }
 }
 
-// Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeApp);
-
-// Make functions available globally
-window.showDetails = function(recordId) {
-    const record = records.find(r => r.id === recordId);
-    if (record) {
-        // Implement modal or detailed view here
-        console.log('Full record details:', record);
-    }
-};
-
-function editLead(id) {
-    const returnTo = 'index';
-    getBasePath().then(basePath => {
-        window.location.href = `${basePath}/pages/edit.html?id=${id}&returnTo=${returnTo}`;
-    });
-}
-
-// Make editLead available globally
-window.editLead = editLead;
-
 async function loadRecords() {
     const tableBody = document.querySelector('.table tbody');
-    if (!tableBody) {
-        console.error('Table body not found');
+    const mobileCardsContainer = document.querySelector('.mobile-cards');
+    
+    if (!tableBody && !mobileCardsContainer) {
+        console.error('Neither table body nor mobile cards container found');
         return;
     }
 
@@ -349,58 +336,93 @@ async function loadRecords() {
     try {
         const response = await fetchAirtableData();
         // Extract records from the response
-        const records = response.records || [];
+        records = response.records || []; // Update global records variable
         
         if (!records || records.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="19">No records found</td></tr>';
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="19">No records found</td></tr>';
+            }
+            if (mobileCardsContainer) {
+                mobileCardsContainer.innerHTML = '<div class="alert alert-info">No records found</div>';
+            }
             return;
         }
 
-        // Clear existing content
-        tableBody.innerHTML = '';
-
-        // Add each record
-        records.forEach(record => {
-            tableBody.innerHTML += createTableRow(record);
-        });
-
-        // Update total records count
-        const totalRecordsElement = document.querySelector('[data-total-records]');
-        if (totalRecordsElement) {
-            totalRecordsElement.textContent = `Total Records: ${records.length}`;
-        }
+        // Render records using the existing renderRecords function
+        renderRecords(records);
 
     } catch (error) {
         console.error('Error loading records:', error);
-        tableBody.innerHTML = '<tr><td colspan="19">Error loading records</td></tr>';
+        const errorMessage = '<div class="alert alert-danger">Error loading records</div>';
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="19">${errorMessage}</td></tr>`;
+        }
+        if (mobileCardsContainer) {
+            mobileCardsContainer.innerHTML = errorMessage;
+        }
     } finally {
         // Hide loading bar
         if (loadingBar) loadingBar.style.display = 'none';
     }
 }
 
-// Make sure these functions are available globally
-window.editLead = editLead;
-window.deleteLead = deleteLead;
+// Remove or comment out the old initialization
+// document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', loadRecords);
-
-async function deleteLead(id) {
-    if (!confirm('Are you sure you want to delete this record?')) {
-        return;
-    }
-
+// Use a single initialization point
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        await deleteAirtableRecord(id);
-        alert('Record deleted successfully');
-        // Reload the table
+        // Initialize configuration first
+        await initConfig();
+        
+        // Initialize area filter
+        initializeAreaFilter();
+        
+        // Setup search functionality
+        setupSearch();
+
+        // Setup area filter event listener
+        const areaFilter = document.getElementById('areaFilter');
+        if (areaFilter) {
+            areaFilter.addEventListener('change', () => {
+                renderRecords(records);
+            });
+        }
+
+        // Load and render records
         await loadRecords();
     } catch (error) {
-        console.error('Error deleting record:', error);
-        alert('Error deleting record: ' + error.message);
+        console.error('Error initializing app:', error);
     }
-}
+});
+
+// Make functions available globally
+window.showDetails = function(recordId) {
+    const record = records.find(r => r.id === recordId);
+    if (record) {
+        // Implement modal or detailed view here
+        console.log('Full record details:', record);
+    }
+};
+
+window.editLead = async function(recordId) {
+    const basePath = await getBasePath();
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const returnTo = user.role === 'Admin' ? 'index' : 'salesman';
+    window.location.href = `${basePath}/pages/edit.html?id=${recordId}&returnTo=${returnTo}`;
+};
+
+window.deleteLead = async function(recordId) {
+    if (confirm('Are you sure you want to delete this record?')) {
+        try {
+            await deleteAirtableRecord(recordId);
+            alert('Record deleted successfully!');
+            location.reload();
+        } catch (error) {
+            alert('Error deleting record: ' + error.message);
+        }
+    }
+};
 
 // Add the toggle details function
 window.toggleDetails = function(button) {
@@ -416,7 +438,14 @@ window.viewDetails = function(recordId) {
     if (card) {
         const detailsSection = card.querySelector('.details-section');
         if (detailsSection) {
-            detailsSection.style.display = detailsSection.style.display === 'none' ? 'block' : 'none';
+            const currentDisplay = detailsSection.style.display;
+            detailsSection.style.display = currentDisplay === 'none' ? 'block' : 'none';
+            
+            // Update button text
+            const viewDetailsBtn = card.querySelector('.view-details-btn');
+            if (viewDetailsBtn) {
+                viewDetailsBtn.textContent = currentDisplay === 'none' ? 'Hide Details' : 'View Details';
+            }
         }
     }
 };

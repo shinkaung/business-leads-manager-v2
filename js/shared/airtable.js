@@ -3,20 +3,40 @@ import { getEndpoints } from './api.js';
 export async function fetchAirtableData() {
     try {
         const endpoints = await getEndpoints();
-        const response = await fetch(endpoints.LEADS);
-        if (!response.ok) throw new Error('Failed to fetch data');
+        const response = await fetch(endpoints.LEADS, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         return await response.json();
     } catch (error) {
         console.error('Error fetching data:', error);
-        throw error;
+        throw new Error('Failed to fetch data');
     }
 }
 
 export async function fetchProductsData() {
     try {
         const endpoints = await getEndpoints();
-        const response = await fetch(endpoints.PRODUCTS);
-        if (!response.ok) throw new Error('Failed to fetch products');
+        const response = await fetch(endpoints.PRODUCTS, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         return await response.json();
     } catch (error) {
         console.error('Error fetching products:', error);
@@ -37,6 +57,7 @@ export async function updateAirtableRecord(recordId, data) {
         const response = await fetch(`${endpoints.LEADS}?id=${recordId}`, {
             method: 'PATCH',
             headers: { 
+                'Accept': 'application/json',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
@@ -59,9 +80,15 @@ export async function deleteAirtableRecord(recordId) {
         const endpoints = await getEndpoints();
         const response = await fetch(`${endpoints.LEADS}?id=${recordId}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Accept': 'application/json',
+                'Content-Type': 'application/json' 
+            }
         });
-        if (!response.ok) throw new Error('Failed to delete record');
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete record');
+        }
         return await response.json();
     } catch (error) {
         console.error('Error deleting record:', error);
@@ -80,7 +107,10 @@ export async function createAirtableRecord(data) {
 
         const response = await fetch(endpoints.LEADS, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Accept': 'application/json',
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify(payload)
         });
 

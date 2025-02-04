@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderView() {
         const tableBody = document.querySelector('.table tbody');
         const leadsList = document.querySelector('.leads-list');
+        const recordCount = document.getElementById('recordCount');
+
+        // Update total records count
+        if (recordCount) {
+            recordCount.textContent = leadsData.length;
+        }
 
         if (!leadsData || leadsData.length === 0) {
             showNoData();

@@ -26,7 +26,7 @@ async function searchApollo() {
     try {
         updateStatus('📤 Sending request to Apollo API...');
         const basePath = await getBasePath();
-        const response = await fetch(`${basePath}/backend/api/apollo/search.php`, {
+        const response = await fetch(`${basePath}/api/apollo/search.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

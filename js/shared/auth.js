@@ -3,7 +3,7 @@ import { getBasePath } from '../config.js';
 export async function authenticateUser(username, password) {
     try {
         const basePath = await getBasePath();
-        const response = await fetch(`${basePath}/backend/api/auth.php`, {
+        const response = await fetch(`${basePath}/api/auth.php`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',

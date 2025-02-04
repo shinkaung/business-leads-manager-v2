@@ -1,11 +1,13 @@
 import { fetchAirtableData, updateAirtableRecord } from '../shared/airtable.js';
 import { initializeAutocomplete } from '../shared/autocomplete.js';
+import { getBasePath } from '../config.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Check user role first
     const userData = localStorage.getItem('user');
     if (!userData) {
-        window.location.href = '../pages/login.html';
+        const basePath = await getBasePath();
+        window.location.href = `${basePath}/pages/login.html`;
         return;
     }
 
@@ -15,11 +17,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Redirect if wrong role tries to access wrong page
     if (user.role === 'Admin' && returnTo === 'salesman') {
-        window.location.href = '../index.html';
+        const basePath = await getBasePath();
+        window.location.href = `${basePath}/index.html`;
         return;
     }
     if (user.role === 'SalesPerson' && returnTo === 'index') {
-        window.location.href = './salesman.html';
+        const basePath = await getBasePath();
+        window.location.href = `${basePath}/pages/salesman.html`;
         return;
     }
 
@@ -109,6 +113,24 @@ async function loadRecord() {
     }
 }
 
+async function goBack() {
+    const userData = localStorage.getItem('user');
+    if (!userData) {
+        const basePath = await getBasePath();
+        window.location.href = `${basePath}/pages/login.html`;
+        return;
+    }
+
+    const user = JSON.parse(userData);
+    const basePath = await getBasePath();
+    
+    if (user.role === 'Admin') {
+        window.location.href = `${basePath}/index.html`;
+    } else if (user.role === 'SalesPerson') {
+        window.location.href = `${basePath}/pages/salesman.html`;
+    }
+}
+
 // Update the form submit handler
 document.getElementById('editRecordForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -140,20 +162,4 @@ document.getElementById('editRecordForm')?.addEventListener('submit', async (e) 
     }
 });
 
-function goBack() {
-    const userData = localStorage.getItem('user');
-    if (!userData) {
-        window.location.href = '../pages/login.html';
-        return;
-    }
-
-    const user = JSON.parse(userData);
-    const urlParams = new URLSearchParams(window.location.search);
-    const returnTo = urlParams.get('returnTo') || 'index';
-
-    if (user.role === 'Admin') {
-        window.location.href = '../index.html';
-    } else if (user.role === 'SalesPerson') {
-        window.location.href = './salesman.html';
-    }
-} 
+export { loadRecord, goBack }; 
