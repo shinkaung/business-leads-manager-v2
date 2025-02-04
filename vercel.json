@@ -12,7 +12,7 @@
   ],
   "build": {
     "env": {
-      "PHP_EXTENSION": ["curl", "json"]
+      "PHP_EXTENSION": "curl,json"
     }
   }
 }
